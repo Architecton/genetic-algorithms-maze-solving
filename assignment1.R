@@ -111,24 +111,26 @@ tournament <- function(agents, num_groups) {
 			group[length(group)] = offspring[[2]]
 		}
 	}
-	# Join groups into list of agents.
+	# Join groups into list of agents and return the list.
 	# TODO TEST
 }
 
-
+# geneticAlgorithm: Implementation of a genetic algorithm
+#
+#
+# Directions are encoded as:
 # 1 - up
 # 2 - down
 # 3 - left
 # 4 - right
-#
-geneticAlgorithm <- function(maze, rows, cols, population_size, fitness_f, min_len, max_len, max_run, lim_run) {
+geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_len, max_run, lim_run) {
 	# Generate population of agents of specified size and of random length from interval [min_len and max_len].
 	# Initialize them with random plan (See above for direction encoding).
 	agents = vector("list", population_size)
 	for(k in 1:population_size) {
-		chromosome_size = sample(min_len:max_len, size=1, replace=TRUE)
-		chromosome = sample(1:4, size=chromosome_size, replace=TRUE)
-		agents[[k]] = list(fitness = 0, chromosome = chromosome)
+		chromosome_size <- sample(min_len:max_len, size=1, replace=TRUE)
+		chromosome <- sample(1:4, size=chromosome_size, replace=TRUE)
+		agents[[k]] <-extends list(fitness = 0, chromosome = chromosome)
 	}
 
 	# counters: iterations and iterations sequence with equal best value.
@@ -149,7 +151,7 @@ geneticAlgorithm <- function(maze, rows, cols, population_size, fitness_f, min_l
 
 		# Compute fitness values.
 		for(k in 1:population_size) {
-			fitness_nxt <- fitness_f(maze, rows, cols, agents[[k]]$chromosome)
+			fitness_nxt <- fitness_f(params[1], params[2], params[3], agents[[k]]$chromosome)
 			if(fitness_nxt > max_fitness) {  # Compare to current max_fitness.
 				max_fitness <- fitness_nxt
 				idx_max_fitness <- k
@@ -164,16 +166,16 @@ geneticAlgorithm <- function(maze, rows, cols, population_size, fitness_f, min_l
 		} else {
 			const_counter <- const_counter + 1  # If no improvement, increment counter of iterations with no improvement.
 		}
-		
-		# Select agents for reproduction. Use tournament selection.
-		# Replace two worst agents (that were not selected for breeding) in each group with offspring.
-		num_groups = 5;
-		new_agents <- tournament(agents, num_groups)
 
 		# If reached maximum number of iterations or if best fitness has not changed for max_run iterations, end.
 		if(iter_counter >= lim_run || const_counter >= max_run) {
 			break;
 		}
+
+		# Select agents for reproduction. Use tournament selection.
+		# Replace two worst agents (that were not selected for breeding) in each group with offspring.
+		num_groups = 5;
+		agents <- tournament(agents, num_groups)
 	}
 
 	# Return gene of agent with maximum fitness.
