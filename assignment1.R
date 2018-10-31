@@ -81,12 +81,18 @@ tournament <- function(agents, num_groups) {
 	for (g_idx = 1:length(groups)) {
 		# Define group to be group of agents in next group.
 		group <- groups[[g_idx]]
+		
+		# Sort agents by their fitness.
+
+
 		# Select two breeders. Select best one with probability P, second best one with probability P*(1-P),
 		# third best one with probability P*(1-P)^2 and so on.
-		P_best = 0.8;
-		# TODO
-		breeders <- sample(group, size=2, replace=FALSE, prob=c(TODO))
-
+		P_best = 0.8;  # Probability of selecting the best agent is 0.8
+		prob_sel <- replicate(length(group), P_best)
+		mult <- replicate(length(group), 1-P_best)^(0:(length(group)-1))
+		prob_sel <- prob_sel * mult
+		# Select breeders.
+		breeders <- sample(group, size=2, replace=FALSE, prob=prob_sel)
 	}
 }
 
@@ -140,7 +146,14 @@ geneticAlgorithm <- function(maze, rows, cols, population_size, fitness_f, min_l
 fitness_f <- function(maze, rows, cols, plan_numeric) {
 	# Decode numeric encoding of directions and evaluate plan based on success and length.
 	plan <- mapvalues(plan_numeric, c(1, 2, 3, 4), c('U', 'D', 'L', 'R'), warn_missing = FALSE)
-	return(simulateSolution(maze, plan, rows, cols)/(length(plan)*100))
+
+	# If reached goal, fitness is inversly proportional to solution length.
+	if(simulateSolution(maze, plan, rows, cols)) {
+		return(1/(length(plan)*100))
+	} else {
+		# If goal not reached, fitness is inversly proportional to length of plan.
+		return(-length(plan))
+	}
 }
 
 
