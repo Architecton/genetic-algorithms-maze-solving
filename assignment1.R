@@ -60,7 +60,7 @@ simulateSolution <- function(maze, rows, cols, solution) {
 	# Linear index of exit.
 	pos_exit <- ind2sub(rows, match('e', maze))
 	# Set penalty value.
-	penalty <- 10
+	penalty <- 25
 	# Set initial score.
 	score <- length(maze)
 	found_exit <- FALSE
@@ -89,6 +89,8 @@ simulateSolution <- function(maze, rows, cols, solution) {
 			move_res <- moveRight(currentPosition, rows, cols)
 			score <- score - move_res[1]*penalty
 			currentPosition <- move_res[2];
+		} else if (move == 'O') {
+
 		} else {
 			print('Error: Incorrect solution format')
 			return(-1)
@@ -140,20 +142,24 @@ crossover <- function(breeder1, breeder2, min_val, max_val, mutation_prob) {
 	
 	# Perform mutations by computing mutations vectors and multiplying the offspring chromosomes by it.
 	# The unit value for multiplication is selected with probability 1-Pm.
-	mut1 <- sample(1:(max_val*10), size=length(off1_chr), replace=TRUE, prob=c(1-mutation_prob, replicate(max_val*10 - 1, mutation_prob)/(max_val*10 -1)))
-	mut2 <- sample(1:(max_val*10), size=length(off2_chr), replace=TRUE, prob=c(1-mutation_prob, replicate(max_val*10 - 1, mutation_prob)/(max_val*10 -1)))
-	off1_chr <- ((off1_chr * mut1) %% (max_val-1)) + 1
-	off2_chr <- ((off2_chr * mut2) %% (max_val-1)) + 1
+	#mut1 <- sample(1:(max_val*10), size=length(off1_chr), replace=TRUE, prob=c(1-mutation_prob, replicate(max_val*10 - 1, mutation_prob)/(max_val*10 -1)))
+	#mut2 <- sample(1:(max_val*10), size=length(off2_chr), replace=TRUE, prob=c(1-mutation_prob, replicate(max_val*10 - 1, mutation_prob)/(max_val*10 -1)))
+	#off1_chr <- off1_chr * mut1
+	#off2_chr <- off2_chr * mut2
+	#off1_chr[off1_chr > 4] <- off1_chr[off1_chr > 4] %% 5
+	#off2_chr[off2_chr > 4] <- off2_chr[off2_chr > 4] %% 5
 	# With probability of mutation, remove one codon from chromosome and append a new randomly chosen one.
 	if(sample(c(1, 0), size=1, prob=c(mutation_prob, 1-mutation_prob)) == 1) {
 		place <- sample(length(off1_chr), size=1)
+		rem <- off1_chr[place]
 		off1_chr <- off1_chr[-place]
-		off1_chr <- append(off1_chr, sample(1:4, size=1))
+		off1_chr <- append(off1_chr, rem)
 	}
 	if(sample(c(1, 0), size=1, prob=c(mutation_prob, 1-mutation_prob)) == 1) {
 		place <- sample(length(off2_chr), size=1)
+		rem <- off2_chr[place]
 		off2_chr <- off2_chr[-place]
-		off2_chr <- append(off2_chr, sample(1:4, size=1))
+		off2_chr <- append(off2_chr, rem)
 	}
 	# Return pair of offsprings.
 	return(list(list(fitness=0, chromosome=off1_chr), list(fitness=0, chromosome=off2_chr)))
@@ -166,8 +172,8 @@ tournament <- function(agents, num_groups, min_val, max_val) {
 	groups <- split(agents, ceiling(seq_along(agents)/num_groups))
 
 	# Set probability of crossover and probability of mutation.
-	Pc = 0.8
-	Pm = 0.1
+	Pc = 0.9
+	Pm = 0.2
 	# Select two breeders from each group. With probability Pc (crossover probability), 
 	# replace two worst non-breeders from group with offspring of breeders.
 	for (g_idx in 1:length(groups)) {
@@ -280,7 +286,7 @@ geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_le
 # 4 - right
 fitness_maze <- function(maze, rows, cols, plan_numeric) {
 	# Decode numeric encoding of directions and evaluate plan based on success and length.
-	plan <- mapvalues(plan_numeric, c(1, 2, 3, 4), c('U', 'D', 'L', 'R'), warn_missing = FALSE)
+	plan <- mapvalues(plan_numeric, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
 	res <- simulateSolution(maze, rows, cols, plan)
 	if(res[[1]]) {
 		return(res[[2]])
@@ -329,8 +335,8 @@ rows2 <- 18
 
 
 # Run algorithm.
-sol <- geneticAlgorithm(population_size=10, fitness_f=fitness_maze, params=list(maze1, rows1, cols1), min_len=length(maze1), max_len=length(maze1), min_val=1, max_val=4, max_run=1000, lim_run=10000)
-sol <- mapvalues(sol, c(1, 2, 3, 4), c('U', 'D', 'L', 'R'), warn_missing = FALSE)
+sol <- geneticAlgorithm(population_size=10000, fitness_f=fitness_maze, params=list(maze2, rows2, cols2), min_len=length(maze2), max_len=length(maze2), min_val=0, max_val=4, max_run=100, lim_run=1000)
+sol <- mapvalues(sol, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
 
 # For library...
 fit <- function(plan) {
