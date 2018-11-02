@@ -1,5 +1,11 @@
 library(plyr)
 library(rlist)
+library(foreach)
+library(doMC)
+library(gsubfn)
+library(purrr)
+# Register cores.
+registerDoMC(8)
 # Auxiliary functions ###
 
 # Print maze on console.
@@ -61,6 +67,8 @@ simulateSolution <- function(maze, rows, cols, solution) {
 	pos_exit <- ind2sub(rows, match('e', maze))
 	# Set penalty value.
 	penalty <- 25
+	# Set penalty multiplier.
+	multiple <- 3
 	# Set initial score.
 	score <- length(maze)
 	found_exit <- FALSE
@@ -75,19 +83,19 @@ simulateSolution <- function(maze, rows, cols, solution) {
 		# Apply moves and penalize hitting into walls.
 		if (move == 'U') {
 			move_res <- moveUp(currentPosition, rows, cols)
-			score <- score - move_res[1]*penalty
+			score <- score - move_res[1]*penalty*multiple
 			currentPosition <- move_res[2]
 		} else if (move == 'D') {
 			move_res <- moveDown(currentPosition, rows, cols)
-			score <- score - move_res[1]*penalty
+			score <- score - move_res[1]*penalty*multiple
 			currentPosition <- move_res[2]
 		} else if (move == 'L') {
 			move_res <- moveLeft(currentPosition, rows, cols)
-			score <- score - move_res[1]*penalty
+			score <- score - move_res[1]*penalty*multiple
 			currentPosition <- move_res[2]
 		} else if (move == 'R') {
 			move_res <- moveRight(currentPosition, rows, cols)
-			score <- score - move_res[1]*penalty
+			score <- score - move_res[1]*penalty*multiple
 			currentPosition <- move_res[2];
 		} else if (move == 'O') {
 
@@ -96,18 +104,18 @@ simulateSolution <- function(maze, rows, cols, solution) {
 			return(-1)
 		}
 		if (maze[currentPosition] == '#') {
-			score <- score - penalty
+			score <- score - penalty*multiple
 			currentPosition <- oldPosition
 		}
 		# If reached exit:
 		if (maze[currentPosition] == 'e') {
-			bonus <- 2000  # Add bonus to score.
+			bonus <- 10000  # Add bonus to score.
 			# Compute travel score. (distance from start - distance from exit)
 			pos_end <- ind2sub(rows, currentPosition)
 			diff1 <- sum(abs(pos_start-pos_end))
 			diff2 <- sum(abs(pos_exit-pos_end))
 			dist_diff <- sum(abs(diff1-diff2))
-			return(list(found_exit, score - dist_diff*penalty - step_counter*penalty + bonus))
+			return(list(found_exit, score - dist_diff*penalty*multiple - step_counter*penalty + bonus))
 		}
 	}
 	# If exit not reached.
@@ -115,7 +123,7 @@ simulateSolution <- function(maze, rows, cols, solution) {
 	diff1 <- sum(abs(pos_start-pos_end))
 	diff2 <- sum(abs(pos_exit-pos_end))
 	dist_diff <- sum(abs(diff1-diff2))
-	return(list(found_exit, score - dist_diff*penalty - step_counter*penalty))
+	return(list(found_exit, score - dist_diff*penalty*multiple - step_counter*penalty))
 }
 
 # crossover: perform crossover between breeder1, breeder2 and return the offspring.
@@ -142,12 +150,12 @@ crossover <- function(breeder1, breeder2, min_val, max_val, mutation_prob) {
 	
 	# Perform mutations by computing mutations vectors and multiplying the offspring chromosomes by it.
 	# The unit value for multiplication is selected with probability 1-Pm.
-	#mut1 <- sample(1:(max_val*10), size=length(off1_chr), replace=TRUE, prob=c(1-mutation_prob, replicate(max_val*10 - 1, mutation_prob)/(max_val*10 -1)))
-	#mut2 <- sample(1:(max_val*10), size=length(off2_chr), replace=TRUE, prob=c(1-mutation_prob, replicate(max_val*10 - 1, mutation_prob)/(max_val*10 -1)))
-	#off1_chr <- off1_chr * mut1
-	#off2_chr <- off2_chr * mut2
-	#off1_chr[off1_chr > 4] <- off1_chr[off1_chr > 4] %% 5
-	#off2_chr[off2_chr > 4] <- off2_chr[off2_chr > 4] %% 5
+	mut1 <- sample(1:(max_val*10), size=length(off1_chr), replace=TRUE, prob=c(1-mutation_prob, replicate(max_val*10 - 1, mutation_prob)/(max_val*10 -1)))
+	mut2 <- sample(1:(max_val*10), size=length(off2_chr), replace=TRUE, prob=c(1-mutation_prob, replicate(max_val*10 - 1, mutation_prob)/(max_val*10 -1)))
+	off1_chr <- off1_chr * mut1
+	off2_chr <- off2_chr * mut2
+	off1_chr[off1_chr > 4] <- (off1_chr[off1_chr > 4] + sample(4, size=1)) %% 5
+	off2_chr[off2_chr > 4] <- (off2_chr[off2_chr > 4] + sample(4, size=1)) %% 5
 	# With probability of mutation, remove one codon from chromosome and append a new randomly chosen one.
 	if(sample(c(1, 0), size=1, prob=c(mutation_prob, 1-mutation_prob)) == 1) {
 		place <- sample(length(off1_chr), size=1)
@@ -215,16 +223,27 @@ tournament <- function(agents, num_groups, min_val, max_val) {
 # max_val: maximum value in chromosome
 # max_run: number of iterations with same maximum fitness value before stopping the algorithm.
 # lim_run: maximum number of iterations of the algorithm.
-geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_len, min_val, max_val, max_run, lim_run) {
+geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_len, min_val, max_val, max_run, lim_run, chromosomes=NULL) {
 	# Generate population of agents of specified size and of random length from interval [min_len and max_len].
 	# Initialize them with random plan (See above for direction encoding).
-	agents <- vector("list", population_size)
-	for(k in 1:population_size) {
-		#chromosome_size <- sample(min_len:max_len, size=1, replace=TRUE)
-		chromosome_size <- max_len
-		chromosome <- sample(min_val:max_val, size=chromosome_size, replace=TRUE)
-		agents[[k]] <- list(fitness = 0, chromosome = chromosome)
-	}
+  if (is.null(chromosomes)) {
+  	agents <- vector("list", population_size)
+  	for(k in 1:population_size) {
+  		#chromosome_size <- sample(min_len:max_len, size=1, replace=TRUE)
+  		chromosome_size <- max_len
+  		chromosome <- sample(min_val:max_val, size=chromosome_size, replace=TRUE)
+  		agents[[k]] <- list(fitness = 0, chromosome = chromosome)
+  	}
+  } else {
+    population_size = length(chromosomes)
+    agents <- vector("list", population_size)
+    for(k in 1:population_size) {
+      #chromosome_size <- sample(min_len:max_len, size=1, replace=TRUE)
+      chromosome_size <- max_len
+      chromosome <- chromosomes[[k]][[2]]
+      agents[[k]] <- list(fitness = 0, chromosome = chromosome)
+    }
+  }
 
 	# counters: iterations and iterations sequence with equal best value.
 	iter_counter <- 0
@@ -275,7 +294,7 @@ geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_le
 	}
 
 	# Return gene of agent with maximum fitness.
-	return (max_fitness_chromosome)
+	return (list(max_fitness_all, max_fitness_chromosome))
 }
 
 # fitness_f: fitness function for maze solution. 
@@ -335,8 +354,20 @@ rows2 <- 18
 
 
 # Run algorithm.
-sol <- geneticAlgorithm(population_size=10000, fitness_f=fitness_maze, params=list(maze2, rows2, cols2), min_len=length(maze2), max_len=length(maze2), min_val=0, max_val=4, max_run=100, lim_run=1000)
-sol <- mapvalues(sol, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
+#list[max_fitness_all, sol] <- geneticAlgorithm(population_size=100, fitness_f=fitness_maze, params=list(maze1, rows1, cols1), min_len=length(maze1), max_len=length(maze1), min_val=0, max_val=4, max_run=1000, lim_run=1000)
+#sol <- mapvalues(sol, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
+
+
+res <- vector("list", 10)
+res <- foreach(i=1:100) %dopar% {
+  geneticAlgorithm(population_size=100, fitness_f=fitness_maze, params=list(maze2, rows2, cols2), min_len=length(maze2), max_len=length(maze2), min_val=0, max_val=4, max_run=100, lim_run=1000)
+}
+
+res2 <- vector("list", 10)
+res2 <- foreach(i=1:100) %dopar% {
+  geneticAlgorithm(population_size=100, fitness_f=fitness_maze, params=list(maze2, rows2, cols2), min_len=length(maze2), max_len=length(maze2), min_val=0, max_val=4, max_run=100, lim_run=1000, chromosomes=res)
+}
+cst <- map(res2, 1)
 
 # For library...
 fit <- function(plan) {
