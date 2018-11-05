@@ -2,9 +2,9 @@ library(plyr)
 library(rlist)
 library(foreach)
 library(doMC)
-library(gsubfn)
 library(purrr)
 library(ggplot2)
+
 # Register cores.
 registerDoMC(detectCores(all.tests = FALSE, logical = TRUE))
 # Auxiliary functions ###
@@ -373,7 +373,7 @@ rows2 <- 18
 #list[max_fitness_all, sol] <- geneticAlgorithm(population_size=100, fitness_f=fitness_maze, params=list(maze1, rows1, cols1), min_len=length(maze1), max_len=length(maze1), min_val=0, max_val=4, max_run=1000, lim_run=1000)
 #sol <- mapvalues(sol, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
 
-# Parse number of iterations of the algorithm to compute.
+# Parse properties of the genetic algorithm from user input.
 repeat {
   num_iterations <- readline(prompt="Enter number of iterations of the algorithm to compute: ")
   # Validate input.
@@ -426,16 +426,9 @@ repeat {
 }
 
 
-print(plot_it)
+# Compute results in a paralellized loop.
 # Allocate memory for results.
 res <- vector("list", as.numeric(num_iterations))
 res <- foreach(i=1:num_iterations) %dopar% {
-  geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze, params=list(maze1, rows1, cols1), min_len=length(maze1), max_len=length(maze1), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it)
+  geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze, params=list(maze2, rows2, cols2), min_len=length(maze2), max_len=length(maze2), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it)
 }
-
-# For library...
-fit <- function(plan) {
-  return(-fitness_maze(maze2, rows2, cols2, plan))
-}
-
-# GeneticAlg.int(genomeLen = length(maze1), codonMin = 1, codonMax = 4, popSize = 100, iteration=1000, evalFunc = fit)
