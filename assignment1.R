@@ -4,8 +4,9 @@ library(foreach)
 library(doMC)
 library(gsubfn)
 library(purrr)
+library(ggplot2)
 # Register cores.
-registerDoMC(8)
+registerDoMC(detectCores(all.tests = FALSE, logical = TRUE))
 # Auxiliary functions ###
 
 # Print maze on console.
@@ -109,7 +110,7 @@ simulateSolution <- function(maze, rows, cols, solution) {
 		}
 		# If reached exit:
 		if (maze[currentPosition] == 'e') {
-			bonus <- 10000  # Add bonus to score.
+			bonus <- 1000  # Add bonus to score.
 			# Compute travel score. (distance from start - distance from exit)
 			pos_end <- ind2sub(rows, currentPosition)
 			diff1 <- sum(abs(pos_start-pos_end))
@@ -223,26 +224,22 @@ tournament <- function(agents, num_groups, min_val, max_val) {
 # max_val: maximum value in chromosome
 # max_run: number of iterations with same maximum fitness value before stopping the algorithm.
 # lim_run: maximum number of iterations of the algorithm.
-geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_len, min_val, max_val, max_run, lim_run, chromosomes=NULL) {
+# plot_iterations: produce a plot of max found cost by iteration.
+geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_len, min_val, max_val, max_run, lim_run, plot_iterations=FALSE) {
 	# Generate population of agents of specified size and of random length from interval [min_len and max_len].
 	# Initialize them with random plan (See above for direction encoding).
-  if (is.null(chromosomes)) {
-  	agents <- vector("list", population_size)
-  	for(k in 1:population_size) {
-  		#chromosome_size <- sample(min_len:max_len, size=1, replace=TRUE)
-  		chromosome_size <- max_len
-  		chromosome <- sample(min_val:max_val, size=chromosome_size, replace=TRUE)
-  		agents[[k]] <- list(fitness = 0, chromosome = chromosome)
-  	}
-  } else {
-    population_size = length(chromosomes)
-    agents <- vector("list", population_size)
-    for(k in 1:population_size) {
-      #chromosome_size <- sample(min_len:max_len, size=1, replace=TRUE)
-      chromosome_size <- max_len
-      chromosome <- chromosomes[[k]][[2]]
-      agents[[k]] <- list(fitness = 0, chromosome = chromosome)
-    }
+  agents <- vector("list", population_size)
+	for(k in 1:population_size) {
+		#chromosome_size <- sample(min_len:max_len, size=1, replace=TRUE)
+		chromosome_size <- max_len
+		chromosome <- sample(min_val:max_val, size=chromosome_size, replace=TRUE)
+		agents[[k]] <- list(fitness = 0, chromosome = chromosome)
+	}
+  
+  # If plotting iteration fitnesses, preallocate a vector for storing results for iterations and a vector for storing global cost increases.
+  if (plot_iterations) {
+    iteration_fitness_y <- vector("integer", lim_run)
+    best_fitness_y <- vector("integer", lim_run)
   }
 
 	# counters: iterations and iterations sequence with equal best value.
@@ -268,8 +265,9 @@ geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_le
 				max_fitness <- fitness_nxt
 				idx_max_fitness <- k
 			}
-			agents[[k]]$fitness = fitness_nxt
+			agents[[k]]$fitness <- fitness_nxt
 		}
+		
 		print(sprintf("maximum fitness of iteration = %f", max_fitness))
 		# If greater than maximum fitness value, reset const_counter counter and assign new previous fitness value.
 		if(max_fitness > max_fitness_all) {
@@ -278,6 +276,12 @@ geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_le
 			max_fitness_chromosome <- agents[[idx_max_fitness]]$chromosome  # Save chromosome of current best agent.
 		} else {
 			const_counter <- const_counter + 1  # If no improvement, increment counter of iterations with no improvement.
+		}
+		
+		# If ploting iteration data, plot results.
+		if(plot_iterations) {
+		  iteration_fitness_y[iter_counter] <- max_fitness
+		  best_fitness_y[iter_counter] <- max_fitness_all
 		}
 
 		# If reached maximum number of iterations or if best fitness has not changed for max_run iterations, end.
@@ -288,11 +292,23 @@ geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_le
 		# Select agents for reproduction. Use tournament selection.
 		# Replace two worst agents (that were not selected for breeding) in each group with offspring.
 		# Num agents in each group.
-		num_in_group = 8;
+		num_in_group <- 8;
 		agents <- tournament(agents, num_in_group, min_val, max_val)
 		print(sprintf("iteration %d: maximum fitness = %f", iter_counter, max_fitness_all))
 	}
 
+	# If plotting terations data, plot results.
+	if(plot_iterations) {
+	  x_data = 1:iter_counter
+	  y_data1 = iteration_fitness_y[x_data]
+	  y_data2 = best_fitness_y[x_data]
+	  res <- data.frame(x_data, y_data1, y_data2)
+	  #plt <- ggplot() + geom_line(data=res, aes(x=x_data, y=y_data1), color='red') + geom_line(data=res, aes(x=x_data, y=y_data2), color='blue')
+	  plt <- ggplot() + geom_line(data=res, aes(x=x_data, y=y_data1), color="darkgreen")
+	  plt <- plt + labs(x = "Generation") + labs(y = "Fitness") + labs(title = "Maximum Fitness in Each Generation")
+	  plot(plt)
+	}
+	
 	# Return gene of agent with maximum fitness.
 	return (list(max_fitness_all, max_fitness_chromosome))
 }
@@ -357,17 +373,65 @@ rows2 <- 18
 #list[max_fitness_all, sol] <- geneticAlgorithm(population_size=100, fitness_f=fitness_maze, params=list(maze1, rows1, cols1), min_len=length(maze1), max_len=length(maze1), min_val=0, max_val=4, max_run=1000, lim_run=1000)
 #sol <- mapvalues(sol, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
 
-
-res <- vector("list", 10)
-res <- foreach(i=1:100) %dopar% {
-  geneticAlgorithm(population_size=100, fitness_f=fitness_maze, params=list(maze2, rows2, cols2), min_len=length(maze2), max_len=length(maze2), min_val=0, max_val=4, max_run=100, lim_run=1000)
+# Parse number of iterations of the algorithm to compute.
+repeat {
+  num_iterations <- readline(prompt="Enter number of iterations of the algorithm to compute: ")
+  # Validate input.
+  if(!is.na(as.integer(num_iterations)) && as.integer(num_iterations) > 0) {
+    break;
+  } else {
+    print("Invalid input. Please try again.") 
+  }
 }
 
-res2 <- vector("list", 10)
-res2 <- foreach(i=1:100) %dopar% {
-  geneticAlgorithm(population_size=100, fitness_f=fitness_maze, params=list(maze2, rows2, cols2), min_len=length(maze2), max_len=length(maze2), min_val=0, max_val=4, max_run=100, lim_run=1000, chromosomes=res)
+repeat {
+  population_size <- readline(prompt="Enter population size: ")
+  # Validate input.
+  if(!is.na(as.integer(population_size)) && as.integer(population_size) > 0) {
+    break;
+  } else {
+    print("Invalid input. Please try again.") 
+  }
 }
-cst <- map(res2, 1)
+
+repeat {
+  lim_run <- readline(prompt="Enter maximum number of generations to compute: ")
+  # Validate input.
+  if(!is.na(as.integer(lim_run)) && as.integer(lim_run) > 0) {
+    break;
+  } else {
+    print("Invalid input. Please try again.") 
+  }
+}
+
+repeat {
+  max_run <- readline(prompt="Enter maximum number of consequent generations without improvement before halting the algorithm: ")
+  # Validate input.
+  if(!is.na(as.integer(max_run)) && as.integer(max_run) > 0) {
+    break;
+  } else {
+    print("Invalid input. Please try again.") 
+  }
+}
+
+repeat {
+  plot_iterations <- readline(prompt="Create a plot of fitness values by iteration? (y/n): ")
+  # Validate input.
+  if(plot_iterations == 'y' || plot_iterations == 'n') {
+    plot_it <- if (plot_iterations == 'y') TRUE else FALSE
+    break;
+  } else {
+    print("Invalid input. Please try again.") 
+  }
+}
+
+
+print(plot_it)
+# Allocate memory for results.
+res <- vector("list", as.numeric(num_iterations))
+res <- foreach(i=1:num_iterations) %dopar% {
+  geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze, params=list(maze1, rows1, cols1), min_len=length(maze1), max_len=length(maze1), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it)
+}
 
 # For library...
 fit <- function(plan) {
