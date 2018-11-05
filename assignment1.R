@@ -4,6 +4,7 @@ library(foreach)
 library(doMC)
 library(purrr)
 library(ggplot2)
+library(gsubfn)
 
 # Register cores.
 registerDoMC(detectCores(all.tests = FALSE, logical = TRUE))
@@ -78,28 +79,34 @@ simulateSolution <- function(maze, rows, cols, solution) {
 	currentPosition <- grep('s', maze)
 	# Go over moves in solution.
 	for (move in solution) {
-		# Increment step counter.
-		step_counter <- step_counter + 1
 		oldPosition <- currentPosition
 		# Apply moves and penalize hitting into walls.
 		if (move == 'U') {
+		  # Increment step counter.
+		  step_counter <- step_counter + 1
 			move_res <- moveUp(currentPosition, rows, cols)
 			score <- score - move_res[1]*penalty*multiple
 			currentPosition <- move_res[2]
 		} else if (move == 'D') {
+		  # Increment step counter.
+		  step_counter <- step_counter + 1
 			move_res <- moveDown(currentPosition, rows, cols)
 			score <- score - move_res[1]*penalty*multiple
 			currentPosition <- move_res[2]
 		} else if (move == 'L') {
+		  # Increment step counter.
+		  step_counter <- step_counter + 1
 			move_res <- moveLeft(currentPosition, rows, cols)
 			score <- score - move_res[1]*penalty*multiple
 			currentPosition <- move_res[2]
 		} else if (move == 'R') {
+		  # Increment step counter.
+		  step_counter <- step_counter + 1
 			move_res <- moveRight(currentPosition, rows, cols)
 			score <- score - move_res[1]*penalty*multiple
 			currentPosition <- move_res[2];
 		} else if (move == 'O') {
-
+		  
 		} else {
 			print('Error: Incorrect solution format')
 			return(-1)
@@ -116,7 +123,7 @@ simulateSolution <- function(maze, rows, cols, solution) {
 			diff1 <- sum(abs(pos_start-pos_end))
 			diff2 <- sum(abs(pos_exit-pos_end))
 			dist_diff <- sum(abs(diff1-diff2))
-			return(list(found_exit, score - dist_diff*penalty*multiple - step_counter*penalty + bonus))
+			return(list(found_exit, step_counter, score - dist_diff*penalty*multiple - step_counter*penalty + bonus))
 		}
 	}
 	# If exit not reached.
@@ -124,7 +131,7 @@ simulateSolution <- function(maze, rows, cols, solution) {
 	diff1 <- sum(abs(pos_start-pos_end))
 	diff2 <- sum(abs(pos_exit-pos_end))
 	dist_diff <- sum(abs(diff1-diff2))
-	return(list(found_exit, score - dist_diff*penalty*multiple - step_counter*penalty))
+	return(list(found_exit, step_counter, score - dist_diff*penalty*multiple - step_counter*penalty))
 }
 
 # crossover: perform crossover between breeder1, breeder2 and return the offspring.
@@ -248,7 +255,7 @@ geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_le
 	# Initialize index of agent with maximum fitness.
 	max_fitness_all <- -1e10
 	max_fitness_chromosome <- NULL
-
+  max_fitness_chromosome_all_len <-0
 	# Run genetic algorithm. Break when any of ending conditions evaluate to TRUE.
 	repeat {
 		# Increment iteration counter.
@@ -256,16 +263,20 @@ geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_le
 
 		# Initialize maximum fitness and index of agent with maximum fitness with default values.
 		max_fitness <- -1e10
+		max_fitness_chromosome_len <- 0
 		idx_max_fitness <- -1
 
 		# Compute fitness values.
 		for(k in 1:population_size) {
 			fitness_nxt <- do.call(fitness_f, append(params, list(agents[[k]]$chromosome)))
-			if(fitness_nxt > max_fitness) {  # Compare to current max_fitness.
-				max_fitness <- fitness_nxt
+			fitness_nxt_val <- fitness_nxt[[1]]
+			fitness_nxt_steps <- fitness_nxt[[2]]
+			if(fitness_nxt_val > max_fitness) {  # Compare to current max_fitness.
+				max_fitness <- fitness_nxt_val
+				max_fitness_chromosome_len <- fitness_nxt_steps
 				idx_max_fitness <- k
 			}
-			agents[[k]]$fitness <- fitness_nxt
+			agents[[k]]$fitness <- fitness_nxt_val
 		}
 		
 		print(sprintf("maximum fitness of iteration = %f", max_fitness))
@@ -274,6 +285,7 @@ geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_le
 			const_counter <- 0
 			max_fitness_all <- max_fitness
 			max_fitness_chromosome <- agents[[idx_max_fitness]]$chromosome  # Save chromosome of current best agent.
+			max_fitness_all_chromosome_len <- max_fitness_chromosome_len
 		} else {
 			const_counter <- const_counter + 1  # If no improvement, increment counter of iterations with no improvement.
 		}
@@ -310,7 +322,7 @@ geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_le
 	}
 	
 	# Return gene of agent with maximum fitness.
-	return (list(max_fitness_all, max_fitness_chromosome))
+	return (list(max_fitness_all, max_fitness_chromosome, max_fitness_all_chromosome_len))
 }
 
 # fitness_f: fitness function for maze solution. 
@@ -323,11 +335,7 @@ fitness_maze <- function(maze, rows, cols, plan_numeric) {
 	# Decode numeric encoding of directions and evaluate plan based on success and length.
 	plan <- mapvalues(plan_numeric, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
 	res <- simulateSolution(maze, rows, cols, plan)
-	if(res[[1]]) {
-		return(res[[2]])
-	} else {
-		return(res[[2]])
-	}
+	return(c(res[3], res[2]))
 }
 
 
@@ -430,5 +438,35 @@ repeat {
 # Allocate memory for results.
 res <- vector("list", as.numeric(num_iterations))
 res <- foreach(i=1:num_iterations) %dopar% {
-  geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze, params=list(maze2, rows2, cols2), min_len=length(maze2), max_len=length(maze2), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it)
+  geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze, params=list(maze1, rows1, cols1), min_len=length(maze1), max_len=length(maze1), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it)
 }
+
+# Extract and display properties of best agents.
+# Make data frame.
+
+# Prepare data frame columns.
+col1 <- map(res, {function(x) x[[1]]})
+col2 <- map(res, {function(x) x[[2]]})
+col3 <- map(res, {function(x) x[[3]]})
+df <- data.frame(fitness=unlist(col1, recursive = TRUE, use.names = TRUE), steps=unlist(col3, recursive = TRUE, use.names = TRUE))
+# Append chromosome vectors to data frame.
+df$chromosomes <- col2
+
+# Store index of row with maximum fitness.
+idx_max_fitness <- which(df$fitness == max(df$fitness))
+
+# Get best chromosome and its length.
+
+chr_max <- df$chromosomes[idx_max_fitness]
+# Remove noop value.
+chr_max <- Filter({function(x) x != 0}, chr_max[[1]])
+num_steps <- df$steps[idx_max_fitness]
+# Process data to get solution as string.
+fitness_max_chromosome <- mapvalues(chr_max, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
+fitness_max_chromosome <- fitness_max_chromosome[1:num_steps]
+chr_string <- str_c(fitness_max_chromosome, sep = "", collapse = ', ')
+
+# Print results.
+print(sprintf("Maximal fitness found: %d", df$fitness[idx_max_fitness]))
+print(sprintf("Chromosome of max fitness (formatted as description of best found solution):"))
+print(sprintf("%s", chr_string))
