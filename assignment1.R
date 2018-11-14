@@ -5,6 +5,7 @@ library(doMC)
 library(purrr)
 library(ggplot2)
 library(gsubfn)
+library(stringr)
 
 # Register cores.
 registerDoMC(detectCores(all.tests = FALSE, logical = TRUE))
@@ -68,9 +69,9 @@ simulateSolution <- function(maze, rows, cols, solution) {
 	# Linear index of exit.
 	pos_exit <- ind2sub(rows, match('e', maze))
 	# Set penalty value.
-	penalty <- 25
+	penalty <- 1
 	# Set penalty multiplier.
-	multiple <- 3
+	multiple <- 10
 	# Set initial score.
 	score <- length(maze)
 	found_exit <- FALSE
@@ -117,13 +118,13 @@ simulateSolution <- function(maze, rows, cols, solution) {
 		}
 		# If reached exit:
 		if (maze[currentPosition] == 'e') {
-			bonus <- 1000  # Add bonus to score.
+			bonus <- 100  # Add bonus to score.
 			# Compute travel score. (distance from start - distance from exit)
 			pos_end <- ind2sub(rows, currentPosition)
 			diff1 <- sum(abs(pos_start-pos_end))
 			diff2 <- sum(abs(pos_exit-pos_end))
 			dist_diff <- sum(abs(diff1-diff2))
-			return(list(found_exit, step_counter, score - dist_diff*penalty*multiple - step_counter*penalty + bonus))
+			return(list(found_exit, step_counter, score - diff2 - step_counter*penalty + bonus))
 		}
 	}
 	# If exit not reached.
@@ -131,7 +132,7 @@ simulateSolution <- function(maze, rows, cols, solution) {
 	diff1 <- sum(abs(pos_start-pos_end))
 	diff2 <- sum(abs(pos_exit-pos_end))
 	dist_diff <- sum(abs(diff1-diff2))
-	return(list(found_exit, step_counter, score - dist_diff*penalty*multiple - step_counter*penalty))
+	return(list(found_exit, step_counter, score - diff2 - step_counter*penalty))
 }
 
 # crossover: perform crossover between breeder1, breeder2 and return the offspring.
@@ -189,7 +190,7 @@ tournament <- function(agents, num_groups, min_val, max_val) {
 
 	# Set probability of crossover and probability of mutation.
 	Pc = 0.9
-	Pm = 0.2
+	Pm = 0.1
 	# Select two breeders from each group. With probability Pc (crossover probability), 
 	# replace two worst non-breeders from group with offspring of breeders.
 	for (g_idx in 1:length(groups)) {
@@ -433,12 +434,26 @@ repeat {
   }
 }
 
+repeat {
+  maze_opt <- readline(prompt="Choose maze to use (1, 2): ")
+  # Validate input.
+  if(maze_opt == '1' || maze_opt == '2') {
+    maze_opt <- as.integer(maze_opt)
+    break;
+  } else {
+    print("Invalid input. Please try again.") 
+  }
+}
 
 # Compute results in a paralellized loop.
 # Allocate memory for results.
 res <- vector("list", as.numeric(num_iterations))
 res <- foreach(i=1:num_iterations) %dopar% {
-  geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze, params=list(maze1, rows1, cols1), min_len=length(maze1), max_len=length(maze1), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it)
+  if(maze_opt == 1) {
+    geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze, params=list(maze1, rows1, cols1), min_len=length(maze1), max_len=length(maze1), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it) 
+  } else {
+    geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze, params=list(maze2, rows2, cols2), min_len=length(maze2), max_len=length(maze2), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it) 
+  }
 }
 
 # Extract and display properties of best agents.
