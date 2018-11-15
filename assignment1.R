@@ -20,6 +20,9 @@ library(crayon)
 
 # What works for the maze2: 8 iterations, population size of 8, 10000 max generations, halt when 1000 generations are same.
 
+# Suppress warnings on console.
+options(warn=-1)
+
 # Register cores.
 registerDoMC(detectCores(all.tests = FALSE, logical = TRUE))
 # Auxiliary functions ###
@@ -307,7 +310,7 @@ tournament <- function(agents, num_groups, min_val, max_val) {
 # max_run: number of iterations with same maximum fitness value before stopping the algorithm.
 # lim_run: maximum number of iterations of the algorithm.
 # plot_iterations: produce a plot of max found cost by iteration.
-geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_len, min_val, max_val, max_run, lim_run, plot_iterations=FALSE) {
+geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_len, min_val, max_val, max_run, lim_run, plot_iterations=FALSE, verbose=TRUE) {
 	# Generate population of agents of specified size and of random length from interval [min_len and max_len].
 	# Initialize them with random plan (See above for direction encoding).
   agents <- vector("list", population_size)
@@ -354,7 +357,9 @@ geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_le
 			agents[[k]]$fitness <- fitness_nxt_val
 		}
 		
-		print(sprintf("maximum fitness of iteration = %f", max_fitness))
+		if(verbose) {
+			print(sprintf("maximum fitness of iteration = %f", max_fitness))	
+		}
 		# If greater than maximum fitness value, reset const_counter counter and assign new previous fitness value.
 		if(max_fitness > max_fitness_all) {
 			const_counter <- 0
@@ -381,7 +386,9 @@ geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_le
 		# Num agents in each group.
 		num_in_group <- 8;
 		agents <- tournament(agents, num_in_group, min_val, max_val)
-		print(sprintf("iteration %f: maximum fitness = %f", iter_counter, max_fitness_all))
+		if(verbose) {
+			print(sprintf("iteration %f: maximum fitness = %f", iter_counter, max_fitness_all))
+		}
 	}
 
 	# If plotting terations data, plot results.
@@ -457,10 +464,14 @@ rows2 <- 18
 #sol <- mapvalues(sol, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
 
 # Parse properties of the genetic algorithm from user input.
+verbose <- TRUE
 repeat {
   num_iterations <- readline(prompt="Enter number of times to initialize and run the genetic algorithm: ")
   # Validate input.
   if(!is.na(as.integer(num_iterations)) && as.integer(num_iterations) > 0) {
+  	if(as.integer(num_iterations) > 1) {
+  		verbose <- FALSE
+  	}
     break;
   } else {
     print("Invalid input. Please try again.") 
@@ -497,15 +508,18 @@ repeat {
   }
 }
 
-repeat {
-  plot_iterations <- readline(prompt="Create a plot of fitness values by iteration? (y/n): ")
-  # Validate input.
-  if(plot_iterations == 'y' || plot_iterations == 'n') {
-    plot_it <- if (plot_iterations == 'y') TRUE else FALSE
-    break;
-  } else {
-    print("Invalid input. Please try again.") 
-  }
+plot_it <- FALSE
+if(as.integer(num_iterations) <= 1) {
+	repeat {
+	  plot_iterations <- readline(prompt="Create a plot of fitness values by iteration? (y/n): ")
+	  # Validate input.
+	  if(plot_iterations == 'y' || plot_iterations == 'n') {
+	    plot_it <- if (plot_iterations == 'y') TRUE else FALSE
+	    break;
+	  } else {
+	    print("Invalid input. Please try again.") 
+	  }
+    }
 }
 
 repeat {
@@ -524,9 +538,9 @@ repeat {
 res <- vector("list", as.numeric(num_iterations))
 res <- foreach(i=1:num_iterations) %dopar% {
   if(maze_opt == 1) {
-    geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze, params=list(maze1, rows1, cols1), min_len=length(maze1), max_len=length(maze1), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it) 
+    geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze, params=list(maze1, rows1, cols1), min_len=length(maze1), max_len=length(maze1), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it, verbose=verbose) 
   } else {
-    geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze, params=list(maze2, rows2, cols2), min_len=length(maze2), max_len=length(maze2), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it) 
+    geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze, params=list(maze2, rows2, cols2), min_len=length(maze2), max_len=length(maze2), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it, verbose=verbose) 
   }
 }
 
