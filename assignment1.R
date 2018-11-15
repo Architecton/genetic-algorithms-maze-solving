@@ -71,9 +71,9 @@ simulateSolution <- function(maze, rows, cols, solution) {
 	# Set penalty value.
 	penalty <- 1
 	# Set penalty multiplier.
-	multiple <- 10
+	multiple <- 1
 	# Set initial score.
-	score <- length(maze)
+	score <- 0
 	found_exit <- FALSE
 	# Count steps.
 	step_counter <- 0
@@ -118,21 +118,22 @@ simulateSolution <- function(maze, rows, cols, solution) {
 		}
 		# If reached exit:
 		if (maze[currentPosition] == 'e') {
-			bonus <- 100  # Add bonus to score.
 			# Compute travel score. (distance from start - distance from exit)
+		  roof <- (rows + cols)*3
 			pos_end <- ind2sub(rows, currentPosition)
-			diff1 <- sum(abs(pos_start-pos_end))
+			diff1 <- sum(abs(pos_end-pos_start))
 			diff2 <- sum(abs(pos_exit-pos_end))
-			dist_diff <- sum(abs(diff1-diff2))
-			return(list(found_exit, step_counter, score - diff2 - step_counter*penalty + bonus))
+			diff3 <- sum(abs(pos_exit-pos_start))
+			return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1))
 		}
 	}
 	# If exit not reached.
+	roof <- (rows + cols)*3
 	pos_end <- ind2sub(rows, currentPosition)
-	diff1 <- sum(abs(pos_start-pos_end))
+	diff1 <- sum(abs(pos_end - pos_start))
 	diff2 <- sum(abs(pos_exit-pos_end))
-	dist_diff <- sum(abs(diff1-diff2))
-	return(list(found_exit, step_counter, score - diff2 - step_counter*penalty))
+	diff3 <- sum(abs(pos_exit-pos_start))
+	return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1))
 }
 
 # crossover: perform crossover between breeder1, breeder2 and return the offspring.
@@ -307,7 +308,7 @@ geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_le
 		# Num agents in each group.
 		num_in_group <- 8;
 		agents <- tournament(agents, num_in_group, min_val, max_val)
-		print(sprintf("iteration %d: maximum fitness = %f", iter_counter, max_fitness_all))
+		print(sprintf("iteration %f: maximum fitness = %f", iter_counter, max_fitness_all))
 	}
 
 	# If plotting terations data, plot results.
@@ -482,6 +483,6 @@ fitness_max_chromosome <- fitness_max_chromosome[1:num_steps]
 chr_string <- str_c(fitness_max_chromosome, sep = "", collapse = ', ')
 
 # Print results.
-print(sprintf("Maximal fitness found: %d", df$fitness[idx_max_fitness]))
+print(sprintf("Maximal fitness found: %f", df$fitness[idx_max_fitness]))
 print(sprintf("Chromosome of max fitness (formatted as description of best found solution):"))
 print(sprintf("%s", chr_string))
