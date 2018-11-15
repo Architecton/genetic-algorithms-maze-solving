@@ -186,6 +186,7 @@ simulateSolution <- function(maze, rows, cols, solution, trace=FALSE) {
 		}
 		# If reached exit:
 		if (maze[currentPosition] == 'e') {
+		  found_exit = TRUE
 			# Compute travel score. (distance from start - distance from exit)
 		  roof <- (rows + cols)*3
 			pos_end <- ind2sub(rows, currentPosition)
@@ -200,6 +201,9 @@ simulateSolution <- function(maze, rows, cols, solution, trace=FALSE) {
 			  return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1))
 			}
 		}
+	}
+	if(trace && !found_exit) {
+	  cat('Exit not found.\n')
 	}
 	# If exit not reached.
 	roof <- (rows + cols)*3
