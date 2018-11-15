@@ -6,6 +6,19 @@ library(purrr)
 library(ggplot2)
 library(gsubfn)
 library(stringr)
+library(crayon)
+
+# 1. Assignment for IS class
+
+#########################################################################################
+# Small program used to solve mazes using a simple implementation of genetic algorithms #
+#########################################################################################
+
+##  #  #  #  #  #  #  #  ##
+#   Author: Jernej Vivod  #  
+##  #  #  #  #  #  #  #  ##
+
+# What works for the maze2: 8 iterations, population size of 8, 10000 max generations, halt when 1000 generations are same.
 
 # Register cores.
 registerDoMC(detectCores(all.tests = FALSE, logical = TRUE))
@@ -17,6 +30,37 @@ printMaze <- function(maze, rows, cols) {
 		print(maze[((x-1)*cols +1) : (x*cols)])
 	}
 }
+
+# Visualize maze and found solution by printing the found path in the maze in red color.
+# This function is called only if the exit is found.
+printMazeSolVis <- function(maze, rows, cols) {
+  for (x in seq(1, rows*cols)) {
+    if (x %% cols == 0) {
+      if(maze[x] == 'i') {
+        cat(red('*'))
+      } else if(maze[x] == 'e') {
+        cat(green('E'))
+      } else if(maze[x] == 's') {
+        cat(green('S'))
+      } else {
+        cat(maze[x]) 
+      }
+      cat('\n')
+    } else {
+      if(maze[x] == 'i') {
+        cat(red('*'))
+      } else if(maze[x] == 'e') {
+        cat(green('E'))
+      } else if(maze[x] == 's') {
+        cat(green('S'))
+      } else {
+        cat(maze[x]) 
+      }
+    }
+  }
+}
+
+
 
 # Functions for applying moves. first element in returned vector signals whether a border was hit.
 moveUp <- function(position, rows, cols) {
@@ -63,7 +107,8 @@ ind2sub <- function(rows, ind){
 
 # SimulateSolution: move in maze with specified number of rows and columns according to plan specified in
 # solution. Return 1 if solution was passed over and 0 otherwise.
-simulateSolution <- function(maze, rows, cols, solution) {
+# if trace == True, the function prints the maze and the found solution.
+simulateSolution <- function(maze, rows, cols, solution, trace=FALSE) {
 	# Starting position linear index.
 	pos_start <- ind2sub(rows, match('s', maze))
 	# Linear index of exit.
@@ -81,31 +126,51 @@ simulateSolution <- function(maze, rows, cols, solution) {
 	# Go over moves in solution.
 	for (move in solution) {
 		oldPosition <- currentPosition
-		# Apply moves and penalize hitting into walls.
+		# Apply moves and penalize collisions.
 		if (move == 'U') {
 		  # Increment step counter.
 		  step_counter <- step_counter + 1
 			move_res <- moveUp(currentPosition, rows, cols)
 			score <- score - move_res[1]*penalty*multiple
 			currentPosition <- move_res[2]
+			if(trace) {
+			  if(maze[currentPosition] != 'e') {
+			    maze[currentPosition] = 'i' 
+			  }
+			}
 		} else if (move == 'D') {
 		  # Increment step counter.
 		  step_counter <- step_counter + 1
 			move_res <- moveDown(currentPosition, rows, cols)
 			score <- score - move_res[1]*penalty*multiple
 			currentPosition <- move_res[2]
+			if(trace) {
+			  if(maze[currentPosition] != 'e') {
+			    maze[currentPosition] = 'i' 
+			  }
+			}
 		} else if (move == 'L') {
 		  # Increment step counter.
 		  step_counter <- step_counter + 1
 			move_res <- moveLeft(currentPosition, rows, cols)
 			score <- score - move_res[1]*penalty*multiple
 			currentPosition <- move_res[2]
+			if(trace) {
+			  if(maze[currentPosition] != 'e') {
+			    maze[currentPosition] = 'i' 
+			  }
+			}
 		} else if (move == 'R') {
 		  # Increment step counter.
 		  step_counter <- step_counter + 1
 			move_res <- moveRight(currentPosition, rows, cols)
 			score <- score - move_res[1]*penalty*multiple
 			currentPosition <- move_res[2];
+			if(trace) {
+			  if(maze[currentPosition] != 'e') {
+			    maze[currentPosition] = 'i' 
+			  }
+			}
 		} else if (move == 'O') {
 		  
 		} else {
@@ -121,19 +186,26 @@ simulateSolution <- function(maze, rows, cols, solution) {
 			# Compute travel score. (distance from start - distance from exit)
 		  roof <- (rows + cols)*3
 			pos_end <- ind2sub(rows, currentPosition)
+			# distances that can be used in the fitness function computation (currently not implementae).
 			diff1 <- sum(abs(pos_end-pos_start))
 			diff2 <- sum(abs(pos_exit-pos_end))
 			diff3 <- sum(abs(pos_exit-pos_start))
-			return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1))
+			# If tracing solution, print maze and path.
+			if(trace) {
+			  printMazeSolVis(maze, rows, cols)
+			} else {
+			  return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1))
+			}
 		}
 	}
 	# If exit not reached.
 	roof <- (rows + cols)*3
 	pos_end <- ind2sub(rows, currentPosition)
+	# distances that can be used in the fitness function computation.
 	diff1 <- sum(abs(pos_end - pos_start))
 	diff2 <- sum(abs(pos_exit-pos_end))
 	diff3 <- sum(abs(pos_exit-pos_start))
-	return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1))
+	return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1)) 
 }
 
 # crossover: perform crossover between breeder1, breeder2 and return the offspring.
@@ -144,6 +216,7 @@ crossover <- function(breeder1, breeder2, min_val, max_val, mutation_prob) {
 	# Select crossover points.
 	cp1 <- sample(c(seq_along(chr1)), size=1)
 	#cp2 <- sample(c(seq_along(chr2)), size=1)
+	# Crossover points are at same place on both chromosomes.
 	cp2 <- cp1
 	# Perform crossover to get offspring
 	# Set limit for rightmost part of chromosome (handle special case where crossover on right edge).
@@ -385,7 +458,7 @@ rows2 <- 18
 
 # Parse properties of the genetic algorithm from user input.
 repeat {
-  num_iterations <- readline(prompt="Enter number of iterations of the algorithm to compute: ")
+  num_iterations <- readline(prompt="Enter number of times to initialize and run the genetic algorithm: ")
   # Validate input.
   if(!is.na(as.integer(num_iterations)) && as.integer(num_iterations) > 0) {
     break;
@@ -483,6 +556,13 @@ fitness_max_chromosome <- fitness_max_chromosome[1:num_steps]
 chr_string <- str_c(fitness_max_chromosome, sep = "", collapse = ', ')
 
 # Print results.
-print(sprintf("Maximal fitness found: %f", df$fitness[idx_max_fitness]))
-print(sprintf("Chromosome of max fitness (formatted as description of best found solution):"))
-print(sprintf("%s", chr_string))
+cat(green(sprintf("Maximal fitness found: %f\n", df$fitness[idx_max_fitness])))
+cat(green(sprintf("Chromosome of max fitness (formatted as description of best found solution):\n")))
+cat(yellow(sprintf("%s\n", chr_string)))
+# Visualize the solution in the maze.
+cat('Solution visualization:\n\n')
+if(maze_opt == 1) {
+  simulateSolution(maze1, rows1, cols1, fitness_max_chromosome, trace=TRUE)
+} else {
+  simulateSolution(maze2, rows2, cols2, fitness_max_chromosome, trace=TRUE)
+}
