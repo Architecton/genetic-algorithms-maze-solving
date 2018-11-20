@@ -375,7 +375,7 @@ simulateSolutionCoins <- function(maze, rows, cols, solution, trace=FALSE) {
     }
   }
   if(trace && !found_exit) {
-    cat('Exit not found.\n')Visualizing the results
+    cat('Exit not found.\n')
     cat(yellow(sprintf("collected %d/%d coin%s (%d points).", coin_counter, num_coins, if (coin_counter == 1) '' else 's', coin_counter*10)))
   }
   # If exit not reached.
@@ -782,7 +782,7 @@ plot_it <- TRUE
 maze_opt <- 0
 
 repeat {
-  set <- readline(prompt="Use quick settings? (y/n)")
+  set <- readline(prompt="Use quick settings? (y/n): ")
   # Validate input.
   if(set == 'y' || set == 'n') {
     if(set == 'y'){
