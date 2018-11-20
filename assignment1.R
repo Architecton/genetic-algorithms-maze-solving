@@ -782,7 +782,7 @@ plot_it <- TRUE
 maze_opt <- 0
 
 repeat {
-  set <- readline(prompt="Use quick settings?")
+  set <- readline(prompt="Use quick settings? (y/n)")
   # Validate input.
   if(set == 'y' || set == 'n') {
     if(set == 'y'){
