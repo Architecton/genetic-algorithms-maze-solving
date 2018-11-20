@@ -18,14 +18,35 @@ library(crayon)
 #   Author: Jernej Vivod  #  
 ##  #  #  #  #  #  #  #  ##
 
-# What works for the maze2A: 8 iterations, population size of 8, 10000 max generations, halt when 1000 generations are same.
+####################################################################################################
+#         ______      __    __              ____   ______            __             __             #
+#        /_  __/___ _/ /_  / /__     ____  / __/  / ____/___  ____  / /____  ____  / /______       #
+#         / / / __ `/ __ \/ / _ \   / __ \/ /_   / /   / __ \/ __ \/ __/ _ \/ __ \/ __/ ___/       #
+#        / / / /_/ / /_/ / /  __/  / /_/ / __/  / /___/ /_/ / / / / /_/  __/ / / / /_(__  )        #
+#       /_/  \__,_/_.___/_/\___/   \____/_/     \____/\____/_/ /_/\__/\___/_/ /_/\__/____/         #
+####################################################################################################
+#
+# functions for maze visualization ......................................................... 
+# Functions for moving the agent in the maze ...............................................
+# Solution simulations .....................................................................
+# Genetic algorithm implementation .........................................................
+# Fitness functions ........................................................................
+# Examples of mazes and their solutions used for testing ...................................
+# Function for computing path that goes over the most coins (second part of assignment) ....
+# User interface ...........................................................................
+# Computing the results ....................................................................
+# Visualizing the results ..................................................................
+#
+# ###################################################################################################
+
 
 # Suppress warnings on console.
 options(warn=-1)
 
 # Register cores.
 registerDoMC(detectCores(all.tests = FALSE, logical = TRUE))
-# Auxiliary functions ###
+
+# Functions for maze visualization #############################################################################
 
 # Print maze on console.
 printMaze <- function(maze, rows, cols) {
@@ -67,7 +88,11 @@ printMazeSolVis <- function(maze, rows, cols) {
   }
 }
 
+################################################################################################################
 
+
+
+# Functions for moving the agent in the maze ###################################################################
 
 # Functions for applying moves. first element in returned vector signals whether a border was hit.
 moveUp <- function(position, rows, cols) {
@@ -111,6 +136,13 @@ ind2sub <- function(rows, ind){
 	r = floor((ind-1) / rows) + 1
 	return (c(r, c))
 }
+
+################################################################################################################
+
+
+
+
+# Solution simulations #########################################################################################
 
 # SimulateSolution: move in maze with specified number of rows and columns according to plan specified in
 # solution. Return 1 if solution was passed over and 0 otherwise.
@@ -218,6 +250,150 @@ simulateSolutionPath <- function(maze, rows, cols, solution, trace=FALSE) {
 	diff3 <- sum(abs(pos_exit-pos_start))
 	return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1)) 
 }
+
+# SimulateSolution: move in maze with specified number of rows and columns according to plan specified in
+# solution. Return 1 if solution was passed over and 0 otherwise.
+# if trace == True, the function prints the maze and the found solution.
+simulateSolutionCoins <- function(maze, rows, cols, solution, trace=FALSE) {
+  maze_tab <- table(maze)
+  num_coins <- maze_tab[names(maze_tab)=='c']
+  # Starting position linear index.
+  pos_start <- ind2sub(rows, match('s', maze))
+  # Linear index of exit.
+  pos_exit <- ind2sub(rows, match('e', maze))
+  # Set penalty value.
+  penalty <- 1
+  # Set penalty multiplier.
+  multiple <- 2
+  # Set initial score.
+  score <- 0
+  coin_counter <- 0
+  COIN_BONUS <- 10
+  found_exit <- FALSE
+  # Count steps.
+  step_counter <- 0
+  currentPosition <- grep('s', maze)
+  # Go over moves in solution.
+  for (move in solution) {
+    oldPosition <- currentPosition
+    # Apply moves and penalize collisions.
+    if (move == 'U') {
+      # Increment step counter.
+      step_counter <- step_counter + 1
+      move_res <- moveUp(currentPosition, rows, cols)
+      score <- score - move_res[1]*penalty*multiple
+      currentPosition <- move_res[2]
+      if(trace) {
+        if(maze[currentPosition] != 'e' && maze[currentPosition] != 'y') {
+          if(maze[currentPosition] == 'c') {
+            coin_counter <- coin_counter + 1
+            maze[currentPosition] = 'y'
+          } else {
+            maze[currentPosition] = 'i' 
+          }
+        }
+      }
+    } else if (move == 'D') {
+      # Increment step counter.
+      step_counter <- step_counter + 1
+      move_res <- moveDown(currentPosition, rows, cols)
+      score <- score - move_res[1]*penalty*multiple
+      currentPosition <- move_res[2]
+      if(trace) {
+        if(maze[currentPosition] != 'e' && maze[currentPosition] != 'y') {
+          if(maze[currentPosition] == 'c') {
+            coin_counter <- coin_counter + 1
+            maze[currentPosition] = 'y'
+          } else {
+            maze[currentPosition] = 'i' 
+          }
+        }
+      }
+    } else if (move == 'L') {
+      # Increment step counter.
+      step_counter <- step_counter + 1
+      move_res <- moveLeft(currentPosition, rows, cols)
+      score <- score - move_res[1]*penalty*multiple
+      currentPosition <- move_res[2]
+      if(trace) {
+        if(maze[currentPosition] != 'e' && maze[currentPosition] != 'y') {
+          if(maze[currentPosition] == 'c') {
+            coin_counter <- coin_counter + 1
+            maze[currentPosition] = 'y'
+          } else {
+            maze[currentPosition] = 'i' 
+          }
+        }
+      }
+    } else if (move == 'R') {
+      # Increment step counter.
+      step_counter <- step_counter + 1
+      move_res <- moveRight(currentPosition, rows, cols)
+      score <- score - move_res[1]*penalty*multiple
+      currentPosition <- move_res[2];
+      if(trace) {
+        if(maze[currentPosition] != 'e' && maze[currentPosition] != 'y') {
+          if(maze[currentPosition] == 'c') {
+            coin_counter <- coin_counter + 1
+            maze[currentPosition] = 'y'
+          } else {
+            maze[currentPosition] = 'i' 
+          }
+        }
+      }
+    } else if (move == 'O') {
+      
+    } else {
+      print('Error: Incorrect solution format')
+      return(-1)
+    }
+    if (maze[currentPosition] == '#') {
+      score <- score - penalty*multiple
+      currentPosition <- oldPosition
+    }
+    if (maze[currentPosition] == 'c' && !trace) {
+      coin_counter <- coin_counter + 1
+      maze[currentPosition] = ' '
+    }
+    # If reached exit:
+    if (maze[currentPosition] == 'e') {
+      found_exit = TRUE
+      # Compute travel score. (distance from start - distance from exit)
+      roof <- (rows + cols)*3
+      pos_end <- ind2sub(rows, currentPosition)
+      # distances that can be used in the fitness function computation (currently not implementae).
+      diff1 <- sum(abs(pos_end-pos_start))
+      diff2 <- sum(abs(pos_exit-pos_end))
+      diff3 <- sum(abs(pos_exit-pos_start))
+      # If tracing solution, print maze and path.
+      if(trace) {
+        printMazeSolVis(maze, rows, cols)
+        cat(yellow(sprintf("collected %d/%d coin%s (%d points).", coin_counter, num_coins, if (coin_counter == 1) '' else 's', coin_counter*10)))
+      } else {
+        return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1 - (num_coins - coin_counter)*0.01))
+      }
+    }
+  }
+  if(trace && !found_exit) {
+    cat('Exit not found.\n')Visualizing the results
+    cat(yellow(sprintf("collected %d/%d coin%s (%d points).", coin_counter, num_coins, if (coin_counter == 1) '' else 's', coin_counter*10)))
+  }
+  # If exit not reached.
+  roof <- (rows + cols)*3
+  pos_end <- ind2sub(rows, currentPosition)
+  # distances that can be used in the fitness function computation.
+  diff1 <- sum(abs(pos_end - pos_start))
+  diff2 <- sum(abs(pos_exit-pos_end))
+  diff3 <- sum(abs(pos_exit-pos_start))
+  return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1 - (num_coins - coin_counter)*0.01)) 
+}
+
+################################################################################################################
+
+
+
+
+# Genetic algorithm implementation #############################################################################
 
 # crossover: perform crossover between breeder1, breeder2 and return the offspring.
 crossover <- function(breeder1, breeder2, min_val, max_val, mutation_prob) {
@@ -415,7 +591,12 @@ geneticAlgorithm <- function(population_size, fitness_f, params, min_len, max_le
 	return (list(max_fitness_all, max_fitness_chromosome, max_fitness_all_chromosome_len))
 }
 
-# fitness_f: fitness function for maze solution. 
+################################################################################################################
+
+
+# Fitness functions ############################################################################################
+
+# fitness_maze_coins: fitness function for maze solution that finds the shortest path through the maze.
 # Directions of movement are encoded as:
 # 1 - up
 # 2 - down
@@ -428,8 +609,24 @@ fitness_maze_path <- function(maze, rows, cols, plan_numeric) {
 	return(c(res[3], res[2]))
 }
 
+# fitness_maze_coins: fitness function for maze solution that collects maximal number of coins.
+# Directions of movement are encoded as:
+# 1 - up
+# 2 - down
+# 3 - left
+# 4 - right
+fitness_maze_coins <- function(maze, rows, cols, plan_numeric) {
+  # Decode numeric encoding of directions and evaluate plan based on success and length.
+  plan <- mapvalues(plan_numeric, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
+  res <- simulateSolutionCoins(maze, rows, cols, plan)
+  return(c(res[3], res[2]))
+}
 
-# Examples for testing.
+#####################################################################################################################
+
+
+
+# Examples of mazes and their solutions used for testing ############################################################
 
 # Example 1:
 maze1A <- c(' ', ' ', ' ', ' ', 'e',
@@ -467,241 +664,7 @@ cols2A <- 17
 rows2A <- 18
 
 
-# Run algorithm.
-#list[max_fitness_all, sol] <- geneticAlgorithm(population_size=100, fitness_f=fitness_maze_path, params=list(maze1A, rows1A, cols1A), min_len=length(maze1A), max_len=length(maze1A), min_val=0, max_val=4, max_run=1000, lim_run=1000)
-#sol <- mapvalues(sol, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
-
-# Parse properties of the genetic algorithm from user input.
-verbose <- TRUE
-
-repeat {
-  mode <- readline(prompt="Compute shortest path to exit or path that collects the maximum number of coins? (1/2): ")
-  # Validate input.
-  if(!is.na(as.integer(mode)) && as.integer(mode) == 1 || as.integer(mode) == 2) {
-    break;
-  } else {
-    print("Invalid input. Please try again.") 
-  }
-}
-
-repeat {
-  num_iterations <- readline(prompt="Enter number of times to initialize and run the genetic algorithm: ")
-  # Validate input.
-  if(!is.na(as.integer(num_iterations)) && as.integer(num_iterations) > 0) {
-  	if(as.integer(num_iterations) > 1) {
-  		verbose <- FALSE
-  	}
-    break;
-  } else {
-    print("Invalid input. Please try again.") 
-  }
-}
-
-repeat {
-  population_size <- readline(prompt="Enter population size: ")
-  # Validate input.
-  if(!is.na(as.integer(population_size)) && as.integer(population_size) > 0) {
-    break;
-  } else {
-    print("Invalid input. Please try again.") 
-  }
-}
-
-repeat {
-  lim_run <- readline(prompt="Enter maximum number of generations to compute: ")
-  # Validate input.
-  if(!is.na(as.integer(lim_run)) && as.integer(lim_run) > 0) {
-    break;
-  } else {
-    print("Invalid input. Please try again.") 
-  }
-}
-
-repeat {
-  max_run <- readline(prompt="Enter maximum number of consequent generations without improvement before halting the algorithm: ")
-  # Validate input.
-  if(!is.na(as.integer(max_run)) && as.integer(max_run) > 0) {
-    break;
-  } else {
-    print("Invalid input. Please try again.") 
-  }
-}
-
-plot_it <- FALSE
-if(as.integer(num_iterations) <= 1) {
-	repeat {
-	  plot_iterations <- readline(prompt="Create a plot of fitness values by iteration? (y/n): ")
-	  # Validate input.
-	  if(plot_iterations == 'y' || plot_iterations == 'n') {
-	    plot_it <- if (plot_iterations == 'y') TRUE else FALSE
-	    break;
-	  } else {
-	    print("Invalid input. Please try again.") 
-	  }
-    }
-}
-
-repeat {
-  maze_opt <- readline(prompt="Choose maze to use (1, 2): ")
-  # Validate input.
-  if(maze_opt == '1' || maze_opt == '2') {
-    maze_opt <- as.integer(maze_opt)
-    break;
-  } else {
-    print("Invalid input. Please try again.") 
-  }
-}
-
-
-## Second part of assignment - collecting coins ##
-
-# SimulateSolution: move in maze with specified number of rows and columns according to plan specified in
-# solution. Return 1 if solution was passed over and 0 otherwise.
-# if trace == True, the function prints the maze and the found solution.
-simulateSolutionCoins <- function(maze, rows, cols, solution, trace=FALSE) {
-  maze_tab <- table(maze)
-  num_coins <- maze_tab[names(maze_tab)=='c']
-  # Starting position linear index.
-  pos_start <- ind2sub(rows, match('s', maze))
-  # Linear index of exit.
-  pos_exit <- ind2sub(rows, match('e', maze))
-  # Set penalty value.
-  penalty <- 1
-  # Set penalty multiplier.
-  multiple <- 2
-  # Set initial score.
-  score <- 0
-  coin_counter <- 0
-  COIN_BONUS <- 10
-  found_exit <- FALSE
-  # Count steps.
-  step_counter <- 0
-  currentPosition <- grep('s', maze)
-  # Go over moves in solution.
-  for (move in solution) {
-    oldPosition <- currentPosition
-    # Apply moves and penalize collisions.
-    if (move == 'U') {
-      # Increment step counter.
-      step_counter <- step_counter + 1
-      move_res <- moveUp(currentPosition, rows, cols)
-      score <- score - move_res[1]*penalty*multiple
-      currentPosition <- move_res[2]
-      if(trace) {
-        if(maze[currentPosition] != 'e' && maze[currentPosition] != 'y') {
-          if(maze[currentPosition] == 'c') {
-            coin_counter <- coin_counter + 1
-            maze[currentPosition] = 'y'
-          } else {
-            maze[currentPosition] = 'i' 
-          }
-        }
-      }
-    } else if (move == 'D') {
-      # Increment step counter.
-      step_counter <- step_counter + 1
-      move_res <- moveDown(currentPosition, rows, cols)
-      score <- score - move_res[1]*penalty*multiple
-      currentPosition <- move_res[2]
-      if(trace) {
-        if(maze[currentPosition] != 'e' && maze[currentPosition] != 'y') {
-          if(maze[currentPosition] == 'c') {
-            coin_counter <- coin_counter + 1
-            maze[currentPosition] = 'y'
-          } else {
-            maze[currentPosition] = 'i' 
-          }
-        }
-      }
-    } else if (move == 'L') {
-      # Increment step counter.
-      step_counter <- step_counter + 1
-      move_res <- moveLeft(currentPosition, rows, cols)
-      score <- score - move_res[1]*penalty*multiple
-      currentPosition <- move_res[2]
-      if(trace) {
-        if(maze[currentPosition] != 'e' && maze[currentPosition] != 'y') {
-          if(maze[currentPosition] == 'c') {
-            coin_counter <- coin_counter + 1
-            maze[currentPosition] = 'y'
-          } else {
-            maze[currentPosition] = 'i' 
-          }
-        }
-      }
-    } else if (move == 'R') {
-      # Increment step counter.
-      step_counter <- step_counter + 1
-      move_res <- moveRight(currentPosition, rows, cols)
-      score <- score - move_res[1]*penalty*multiple
-      currentPosition <- move_res[2];
-      if(trace) {
-        if(maze[currentPosition] != 'e' && maze[currentPosition] != 'y') {
-          if(maze[currentPosition] == 'c') {
-            coin_counter <- coin_counter + 1
-            maze[currentPosition] = 'y'
-          } else {
-            maze[currentPosition] = 'i' 
-          }
-        }
-      }
-    } else if (move == 'O') {
-      
-    } else {
-      print('Error: Incorrect solution format')
-      return(-1)
-    }
-    if (maze[currentPosition] == '#') {
-      score <- score - penalty*multiple
-      currentPosition <- oldPosition
-    }
-    if (maze[currentPosition] == 'c' && !trace) {
-      coin_counter <- coin_counter + 1
-      maze[currentPosition] = ' '
-    }
-    # If reached exit:
-    if (maze[currentPosition] == 'e') {
-      found_exit = TRUE
-      # Compute travel score. (distance from start - distance from exit)
-      roof <- (rows + cols)*3
-      pos_end <- ind2sub(rows, currentPosition)
-      # distances that can be used in the fitness function computation (currently not implementae).
-      diff1 <- sum(abs(pos_end-pos_start))
-      diff2 <- sum(abs(pos_exit-pos_end))
-      diff3 <- sum(abs(pos_exit-pos_start))
-      # If tracing solution, print maze and path.
-      if(trace) {
-        printMazeSolVis(maze, rows, cols)
-        cat(yellow(sprintf("collected %d/%d coin%s (%d points).", coin_counter, num_coins, if (coin_counter == 1) '' else 's', coin_counter*10)))
-      } else {
-        return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1 - (num_coins - coin_counter)*0.01))
-      }
-    }
-  }
-  if(trace && !found_exit) {
-    cat('Exit not found.\n')
-    cat(yellow(sprintf("collected %d/%d coin%s (%d points).", coin_counter, num_coins, if (coin_counter == 1) '' else 's', coin_counter*10)))
-  }
-  # If exit not reached.
-  roof <- (rows + cols)*3
-  pos_end <- ind2sub(rows, currentPosition)
-  # distances that can be used in the fitness function computation.
-  diff1 <- sum(abs(pos_end - pos_start))
-  diff2 <- sum(abs(pos_exit-pos_end))
-  diff3 <- sum(abs(pos_exit-pos_start))
-  return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1 - (num_coins - coin_counter)*0.01)) 
-}
-
-fitness_maze_coins <- function(maze, rows, cols, plan_numeric) {
-  # Decode numeric encoding of directions and evaluate plan based on success and length.
-  plan <- mapvalues(plan_numeric, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
-  res <- simulateSolutionCoins(maze, rows, cols, plan)
-  return(c(res[3], res[2]))
-}
-
-
-
-# Examples for testing.
+# Examples for testing the algorithm for finding the path that contains the most coins.
 
 # Example 1:
 maze1B <- c(' ', ' ', 'c', ' ', 'e',
@@ -740,12 +703,187 @@ solution2B <- c('U','U','U','U','U','U','U','U','U','U','l','l', 'U', 'U', 'U', 
 cols2B <- 17
 rows2B <- 18
 
-# Compute results in a paralellized loop.
-# Allocate memory for results.
-res <- vector("list", as.numeric(num_iterations))
+#####################################################################################################################
 
+
+# Function for computing path that goes over the most coins (second part of assignment) #############################
+
+# coinPath: compute path that collects the maximum number of coins and finds exit.
+# Return chrosomome representing the path. 
+#
+# maze ... maze to use
+# rows ... number of rows in maze description
+# cols ... number of columns in maze description
+# population_size ... population size used in genetic algorithm
+# fitness_func ... fitness function for evaluating individuals in genetic algorithms
+# max_run ... number of generations with same maximal fitness before stopping the genetic algorithm
+# lim_run ... maximum number of generations to compute
+# verbose ... print data about generations in genetic algorithm
+coinPath <- function(maze, rows, cols, population_size, fitness_func, max_run, lim_run, verbose) {
+  maze_tab <- table(maze) 									# Compute number of coins found in the maze.
+  num_coins <- maze_tab[names(maze_tab)=='c']
+  num_coins_count <- num_coins
+  fin <- c() 												         # vector for storing the results
+  for (k in 1:num_coins_count) { 							# For each coin in the maze...
+    res1 <- vector("list", as.numeric(num_coins))
+    res1 <- foreach(i=1:num_coins) %dopar% { 				# Compute paths from starting point to each coin in maze in a parallelized loop.
+      maze_aux <- maze 										        # Create an auxiliary maze descriptor vector.
+      maze_aux[maze_aux == 'e'] <- ' ' 						# Remove exit.
+      maze_aux[maze_aux == 'c'][i] <- 'e' 				# Make i-th coin the exit and compute path to it.
+      geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_func, params=list(maze_aux, rows, cols), min_len=length(maze2B), max_len=length(maze2B), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=FALSE, verbose=verbose) 
+    }
+    col1 <- map(res1, {function(x) x[[1]]})  				# Create data fame with info about the results obtained by the genetic algorithm.
+    col2 <- map(res1, {function(x) x[[2]]})
+    col3 <- map(res1, {function(x) x[[3]]})
+    df <- data.frame(fitness=unlist(col1, recursive = TRUE, use.names = TRUE), steps=unlist(col3, recursive = TRUE, use.names = TRUE))
+    df$chromosomes <- col2
+    idx_max_fitness <- which(df$fitness == max(df$fitness))[1] 	# Get index of individual with maximal fitness in the dataframe.
+    chr_max <- df$chromosomes[idx_max_fitness] 					        # Obtain chromosome of individual with maximal fitness.
+    chr_max <- Filter({function(x) x != 0}, chr_max[[1]]) 		  # Remove noop codons.
+    chr_max <- chr_max[1:df$steps[idx_max_fitness]] 			      # Truncate.
+    fin <- c(fin, chr_max) 										                  # Append individual's chromosome to vector storing the total chromosome for the whole path.
+    maze[maze == 's'] <- ' ' 									                  # Remove start from maze.
+    maze[maze == 'c'][idx_max_fitness] <- 's' 					        # Make coin that was reached the new start.
+    num_coins <- num_coins - 1 									                # There is now one less coin.
+  }
+  res <- vector("list", as.numeric(num_iterations)) 			      # Allocate memory for chromosomes of individuals that result form running the genetic agorithm from final coin to maze exit.
+  res <- foreach(i=1:num_iterations) %dopar% { 					        # Compute shortest path from last coin to exit.
+    geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_func, params=list(maze, rows, cols), min_len=length(maze2B), max_len=length(maze2B), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=FALSE, verbose=verbose) 
+  }
+  
+  # Prepare data frame columns for presenting the results of the final runs of the genetic algorithm.
+  col1 <- map(res, {function(x) x[[1]]})
+  col2 <- map(res, {function(x) x[[2]]})
+  col3 <- map(res, {function(x) x[[3]]})
+  df <- data.frame(fitness=unlist(col1, recursive = TRUE, use.names = TRUE), steps=unlist(col3, recursive = TRUE, use.names = TRUE))
+  df$chromosomes <- col2
+  idx_max_fitness <- which(df$fitness == max(df$fitness))  		# Store index of row with maximum fitness.
+  chr_max <- df$chromosomes[idx_max_fitness] 					        # Get best chromosome and its length.
+  chr_max <- Filter({function(x) x != 0}, chr_max[[1]]) 		  # Remove noop codons.
+  num_steps <- df$steps[idx_max_fitness] 						          # Truncate chromosome.
+  chr_max <- chr_max[1:num_steps]
+  return (mapvalues(c(fin, chr_max), c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE))  # Map to characters describing the direction and return result.
+}
+
+#####################################################################################################################
+
+# User interface ####################################################################################################
+
+# Parse properties of the genetic algorithm from user input.
+verbose <- TRUE
+quick_settings <- FALSE
+
+# Default parameter values - used when quick settings are selected.
+num_iterations <- 8
+population_size <- 8
+lim_run <- 10000
+max_run <- 1000
+plot_it <- TRUE
+maze_opt <- 0
+
+repeat {
+  set <- readline(prompt="Use quick settings?")
+  # Validate input.
+  if(set == 'y' || set == 'n') {
+    if(set == 'y'){
+    	quick_settings <- TRUE
+    	break;
+    } else {
+    	break;
+    }
+  } else {
+    print("Invalid input. Please try again.") 
+  }
+}
+
+repeat {
+  mode <- readline(prompt="Compute shortest path to exit or path that collects the maximum number of coins? (1/2): ")
+  # Validate input.
+  if(!is.na(as.integer(mode)) && as.integer(mode) == 1 || as.integer(mode) == 2) {
+    break;
+  } else {
+    print("Invalid input. Please try again.") 
+  }
+}
+
+if(!quick_settings){
+	repeat {
+	  num_iterations <- readline(prompt="Enter number of times to initialize and run the genetic algorithm: ")
+	  # Validate input.
+	  if(!is.na(as.integer(num_iterations)) && as.integer(num_iterations) > 0) {
+	  	if(as.integer(num_iterations) > 1) {
+	  		verbose <- FALSE
+	  	}
+	    break;
+	  } else {
+	    print("Invalid input. Please try again.") 
+	  }
+	}
+
+	repeat {
+	  population_size <- readline(prompt="Enter population size: ")
+	  # Validate input.
+	  if(!is.na(as.integer(population_size)) && as.integer(population_size) > 0) {
+	    break;
+	  } else {
+	    print("Invalid input. Please try again.") 
+	  }
+	}
+
+	repeat {
+	  lim_run <- readline(prompt="Enter maximum number of generations to compute: ")
+	  # Validate input.
+	  if(!is.na(as.integer(lim_run)) && as.integer(lim_run) > 0) {
+	    break;
+	  } else {
+	    print("Invalid input. Please try again.") 
+	  }
+	}
+
+	repeat {
+	  max_run <- readline(prompt="Enter maximum number of consequent generations without improvement before halting the algorithm: ")
+	  # Validate input.
+	  if(!is.na(as.integer(max_run)) && as.integer(max_run) > 0) {
+	    break;
+	  } else {
+	    print("Invalid input. Please try again.") 
+	  }
+	}
+
+	plot_it <- FALSE
+	if(as.integer(num_iterations) <= 1) {
+		repeat {
+		  plot_iterations <- readline(prompt="Create a plot of fitness values by iteration? (y/n): ")
+		  # Validate input.
+		  if(plot_iterations == 'y' || plot_iterations == 'n') {
+		    plot_it <- if (plot_iterations == 'y') TRUE else FALSE
+		    break;
+		  } else {
+		    print("Invalid input. Please try again.") 
+		  }
+	    }
+	}
+}
+
+repeat {
+  maze_opt <- readline(prompt="Choose maze to use (1, 2): ")
+  # Validate input.
+  if(maze_opt == '1' || maze_opt == '2') {
+    maze_opt <- as.integer(maze_opt)
+    break;
+  } else {
+    print("Invalid input. Please try again.") 
+  }
+}
+
+#####################################################################################################################
+
+# Computing the results ###################################################################################################
 # If computing the shortest path...
 if (as.integer(mode) == 1) {
+  # Compute results in a paralellized loop.
+  # Allocate memory for results.
+  res <- vector("list", as.numeric(num_iterations))
   res <- foreach(i=1:num_iterations) %dopar% {
     if(maze_opt == 1) {
       geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze_path, params=list(maze1A, rows1A, cols1A), min_len=length(maze1A), max_len=length(maze1A), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it, verbose=verbose) 
@@ -755,45 +893,52 @@ if (as.integer(mode) == 1) {
   } 
 # If computing path that collects the most coins...
 } else {
-  res <- foreach(i=1:num_iterations) %dopar% {
-    if(maze_opt == 1) {
-      geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze_coins, params=list(maze1B, rows1B, cols1B), min_len=length(maze1B)*5, max_len=length(maze1B)*5, min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it, verbose=verbose) 
-    } else {
-      geneticAlgorithm(population_size=as.numeric(population_size), fitness_f=fitness_maze_coins, params=list(maze2B, rows2B, cols2B), min_len=length(maze2B), max_len=length(maze2B), min_val=0, max_val=4, max_run=as.numeric(max_run), lim_run=as.numeric(lim_run), plot_iterations=plot_it, verbose=verbose) 
-    }
+  # Get results.
+  if(maze_opt == 1) {
+    fitness_max_chromosome <- coinPath(maze=maze1B, rows=rows1B, cols=cols1B, population_size=population_size, fitness_func=fitness_maze_path, max_run=max_run, lim_run=lim_run, verbose=FALSE)
+  } else {
+    fitness_max_chromosome <- coinPath(maze=maze2B, rows=rows2B, cols=cols2B, population_size=population_size, fitness_func=fitness_maze_path, max_run=max_run, lim_run=lim_run, verbose=FALSE)
   }
 }
 
-# Extract and display properties of best agents.
-# Make data frame.
+#####################################################################################################################
 
-# Prepare data frame columns.
-col1 <- map(res, {function(x) x[[1]]})
-col2 <- map(res, {function(x) x[[2]]})
-col3 <- map(res, {function(x) x[[3]]})
-df <- data.frame(fitness=unlist(col1, recursive = TRUE, use.names = TRUE), steps=unlist(col3, recursive = TRUE, use.names = TRUE))
-# Append chromosome vectors to data frame.
-df$chromosomes <- col2
 
-# Store index of row with maximum fitness.
-idx_max_fitness <- which(df$fitness == max(df$fitness))
+# Visualizing the results ###########################################################################################
 
-# Get best chromosome and its length.
+if (as.integer(mode) == 1) {
+	# Extract and display properties of best agents.
+	# Make data frame.
 
-chr_max <- df$chromosomes[idx_max_fitness]
-# Remove noop value.
-chr_max <- Filter({function(x) x != 0}, chr_max[[1]])
-num_steps <- df$steps[idx_max_fitness]
-# Process data to get solution as string.
-fitness_max_chromosome <- mapvalues(chr_max, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
-fitness_max_chromosome <- fitness_max_chromosome[1:num_steps]
+	# Prepare data frame columns.
+	col1 <- map(res, {function(x) x[[1]]})
+	col2 <- map(res, {function(x) x[[2]]})
+	col3 <- map(res, {function(x) x[[3]]})
+	df <- data.frame(fitness=unlist(col1, recursive = TRUE, use.names = TRUE), steps=unlist(col3, recursive = TRUE, use.names = TRUE))
+	# Append chromosome vectors to data frame.
+	df$chromosomes <- col2
+
+	# Store index of row with maximum fitness.
+	idx_max_fitness <- which(df$fitness == max(df$fitness))
+
+	# Get best chromosome and its length.
+	chr_max <- df$chromosomes[idx_max_fitness]
+	# Remove noop value.
+	chr_max <- Filter({function(x) x != 0}, chr_max[[1]])
+	num_steps <- df$steps[idx_max_fitness]
+	# Process data to get solution as string.
+	fitness_max_chromosome <- mapvalues(chr_max, c(0, 1, 2, 3, 4), c('O', 'U', 'D', 'L', 'R'), warn_missing = FALSE)
+	fitness_max_chromosome <- fitness_max_chromosome[1:num_steps]
+	
+	# Print results.
+	cat(green(sprintf("Maximal fitness found: %f\n", df$fitness[idx_max_fitness])))
+}
+
 chr_string <- str_c(fitness_max_chromosome, sep = "", collapse = ', ')
-
-# Print results.
-cat(green(sprintf("Maximal fitness found: %f\n", df$fitness[idx_max_fitness])))
 cat(green(sprintf("Chromosome of max fitness (formatted as description of best found solution):\n")))
 cat(yellow(sprintf("%s\n", chr_string)))
-# Visualize the solution in the maze.
+
+# Visualize the solution in the maze by tracing the path.
 cat('Solution visualization:\n\n')
 if (as.integer(mode) == 1) {
   if(maze_opt == 1) {
