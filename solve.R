@@ -368,7 +368,7 @@ simulateSolutionCoins <- function(maze, rows, cols, solution, trace=FALSE) {
       # If tracing solution, print maze and path.
       if(trace) {
         printMazeSolVis(maze, rows, cols)
-        cat(yellow(sprintf("collected %d/%d coin%s (%d points).", coin_counter, num_coins, if (coin_counter == 1) '' else 's', coin_counter*10)))
+        cat(yellow(sprintf("collected %d/%d coin%s (%d points).\n", coin_counter, num_coins, if (coin_counter == 1) '' else 's', coin_counter*10)))
       } else {
         return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1 - (num_coins - coin_counter)*0.01))
       }
