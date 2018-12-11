@@ -32,10 +32,10 @@ library(crayon)
 # Genetic algorithm implementation ......................................................... 396   #
 # Fitness functions ........................................................................ 597   #
 # Examples of mazes and their solutions used for testing ................................... 629   #
-# Function for computing path that goes over the most coins (second part of assignment) .... 709   #
-# User interface ........................................................................... 770   #
-# Computing the results .................................................................... 881   #
-# Visualizing the results .................................................................. 907   #
+# Function for computing path that goes over the most coins (second part of assignment) .... 756   #
+# User interface ........................................................................... 817   #
+# Computing the results .................................................................... 928   #
+# Visualizing the results .................................................................. 954   #
 #                                                                                                  #
 ####################################################################################################
 
@@ -368,7 +368,7 @@ simulateSolutionCoins <- function(maze, rows, cols, solution, trace=FALSE) {
       # If tracing solution, print maze and path.
       if(trace) {
         printMazeSolVis(maze, rows, cols)
-        cat(yellow(sprintf("collected %d/%d coin%s (%d points).\n", coin_counter, num_coins, if (coin_counter == 1) '' else 's', coin_counter*10)))
+        cat(yellow(sprintf("collected %d/%d coin%s (%d points).", coin_counter, num_coins, if (coin_counter == 1) '' else 's', coin_counter*10)))
       } else {
         return(list(found_exit, step_counter, roof - diff2 - step_counter*0.1 - (num_coins - coin_counter)*0.01))
       }
@@ -451,7 +451,7 @@ tournament <- function(agents, num_groups, min_val, max_val) {
 
 	# Set probability of crossover and probability of mutation.
 	Pc = 0.9
-	Pm = 0.1
+	Pm = 0.03
 	# Select two breeders from each group. With probability Pc (crossover probability), 
 	# replace two worst non-breeders from group with offspring of breeders.
 	for (g_idx in 1:length(groups)) {
@@ -703,6 +703,53 @@ solution2B <- c('U','U','U','U','U','U','U','U','U','U','l','l', 'U', 'U', 'U', 
 cols2B <- 17
 rows2B <- 18
 
+maze_add1A <- c('#', '#', '#', '#', '#', '#', '#', '#', '#', '#',
+                '#', 'e', '#', ' ', '#', ' ', '#', ' ', 's', '#',
+                '#', ' ', '#', ' ', '#', ' ', '#', ' ', '#', '#',
+                '#', ' ', '#', ' ', ' ', ' ', '#', ' ', ' ', '#',
+                '#', ' ', '#', ' ', '#', ' ', '#', '#', ' ', '#',
+                '#', ' ', '#', ' ', '#', ' ', '#', ' ', ' ', '#',
+                '#', ' ', '#', ' ', '#', ' ', '#', ' ', ' ', '#',
+                '#', ' ', '#', ' ', '#', ' ', '#', ' ', ' ', '#',
+                '#', ' ', ' ', ' ', '#', ' ', ' ', ' ', ' ', '#',
+                '#', '#', '#', '#', '#', '#', '#', '#', '#', '#')
+
+cols_add1A <- 10
+rows_add1A <- 10
+
+
+maze_add1B <- c('#', '#', '#', '#', '#', '#', '#', '#', '#', '#',
+                '#', 'e', '#', 'c', '#', 'c', '#', ' ', 's', '#',
+                '#', ' ', '#', ' ', '#', ' ', '#', ' ', '#', '#',
+                '#', ' ', '#', ' ', ' ', ' ', '#', ' ', ' ', '#',
+                '#', ' ', '#', ' ', '#', ' ', '#', '#', ' ', '#',
+                '#', ' ', '#', ' ', '#', ' ', '#', ' ', ' ', '#',
+                '#', ' ', '#', ' ', '#', ' ', '#', 'c', ' ', '#',
+                '#', ' ', '#', ' ', '#', ' ', '#', ' ', ' ', '#',
+                '#', ' ', ' ', ' ', '#', ' ', ' ', ' ', ' ', '#',
+                '#', '#', '#', '#', '#', '#', '#', '#', '#', '#')
+
+cols_add1B <- 10
+rows_add1B <- 10
+
+
+maze_add2A <- c('#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#',
+                '#', ' ', ' ', ' ', '#', ' ', ' ', ' ', '#', ' ', ' ', ' ', '#', ' ', ' ', ' ', '#', ' ', 'e', '#', 
+                '#', 's', '#', ' ', ' ', ' ', '#', ' ', ' ', ' ', '#', ' ', ' ', ' ', '#', ' ', ' ', ' ', ' ', '#',
+                '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#')
+
+cols_add2A <- 20
+rows_add2A <- 4
+
+
+maze_add2B <- c('#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#',
+                '#', ' ', ' ', ' ', '#', ' ', ' ', 'c', '#', ' ', ' ', 'c', '#', ' ', 'c', ' ', '#', ' ', 'e', '#', 
+                '#', 's', '#', ' ', 'c', ' ', '#', ' ', ' ', ' ', '#', ' ', ' ', ' ', '#', ' ', ' ', 'c', ' ', '#',
+                '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#')
+
+cols_add2B <- 20
+rows_add2B <- 4
+
 #####################################################################################################################
 
 
@@ -787,6 +834,8 @@ repeat {
   if(set == 'y' || set == 'n') {
     if(set == 'y'){
     	quick_settings <- TRUE
+    	verbose <- FALSE
+    	plot_it <- FALSE
     	break;
     } else {
     	break;
@@ -850,7 +899,6 @@ if(!quick_settings){
 	  }
 	}
 
-	plot_it <- FALSE
 	if(as.integer(num_iterations) <= 1) {
 		repeat {
 		  plot_iterations <- readline(prompt="Create a plot of fitness values by iteration? (y/n): ")
